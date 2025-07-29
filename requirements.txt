@@ -1,22 +1,10 @@
-# Web Framework
 fastapi
 uvicorn
-
-# Multi-agent Framework
-pyautogen
-
-# LangChain - Granular dependencies for smaller size
+python-dotenv
+supabase
 langchain-core
 langchain-openai
 langchain-community
 langchain-text-splitters
-
-# Document Processing & Tokenizer
+openai
 pypdf
-tiktoken
-
-# Supabase Python Client
-supabase
-
-# Utilities
-python-dotenv
