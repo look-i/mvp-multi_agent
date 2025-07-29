@@ -169,7 +169,7 @@ def get_relevant_documents_from_db(query_text: str, top_k: int = 3) -> tuple[str
 
 # --- API 路由 ---
 
-api_router = APIRouter(prefix="/ai/multi-agent")
+api_router = APIRouter()
 
 
 @api_router.get("/")
