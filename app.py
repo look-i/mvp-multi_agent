@@ -99,7 +99,6 @@ class ConversationCreateRequest(BaseModel):
     title: Optional[str] = "新的对话"
 
 class MessageCreateRequest(BaseModel):
-    conversation_id: str
     content: str
     use_rag: bool = True
 
@@ -210,18 +209,18 @@ async def create_conversation(req: ConversationCreateRequest, user: dict = Depen
         logger.error(f"创建对话时出错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.post("/messages", response_model=MessageResponse)
-async def create_message(req: MessageCreateRequest, user: dict = Depends(get_current_user)):
+@api_router.post("/conversations/{conversation_id}/messages", response_model=MessageResponse)
+async def create_message(conversation_id: str, req: MessageCreateRequest, user: dict = Depends(get_current_user)):
     """处理用户消息，并获取一个智能体的回复"""
     try:
         # 验证用户是否有权访问此对话
-        conv_res = supabase_admin.table('conversations').select('user_id').eq('id', req.conversation_id).single().execute()
+        conv_res = supabase_admin.table('conversations').select('user_id').eq('id', conversation_id).single().execute()
         if not conv_res.data or conv_res.data['user_id'] != user.id:
             raise HTTPException(status_code=403, detail="无权访问此对话")
 
         # 1. 将用户的消息存入数据库
         user_message_res = supabase_admin.table('messages').insert({
-            'conversation_id': req.conversation_id,
+            'conversation_id': conversation_id,
             'role': 'user',
             'content': req.content
         }).execute()
@@ -229,7 +228,7 @@ async def create_message(req: MessageCreateRequest, user: dict = Depends(get_cur
             raise HTTPException(status_code=500, detail="存储用户消息失败")
 
         # 2. 从数据库获取完整的历史消息
-        history_res = supabase_admin.table('messages').select('*').eq('conversation_id', req.conversation_id).order('created_at', desc=False).execute()
+        history_res = supabase_admin.table('messages').select('*').eq('conversation_id', conversation_id).order('created_at', desc=False).execute()
         history = history_res.data or []
         
         # 3. 随机选择一个智能体角色来回复
@@ -261,7 +260,7 @@ async def create_message(req: MessageCreateRequest, user: dict = Depends(get_cur
 
         # 7. 将智能体的回复存入数据库
         agent_message_res = supabase_admin.table('messages').insert({
-            'conversation_id': req.conversation_id,
+            'conversation_id': conversation_id,
             'role': agent_role_key, # 存储实际的智能体角色
             'content': agent_response_content,
             'metadata': {'references': references}
