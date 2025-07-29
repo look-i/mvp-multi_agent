@@ -1,5 +1,5 @@
 # 导入必要的模块
-from fastapi import FastAPI, HTTPException, Request, Body, File, UploadFile, APIRouter
+from fastapi import FastAPI, HTTPException, Request, Body, File, UploadFile, APIRouter, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -152,6 +152,17 @@ api_router = APIRouter(prefix="/ai/multi-agent")
 @api_router.get("/")
 async def root():
     return {"message": "AI教育多智能体系统API (Supabase版)"}
+
+
+@api_router.get("/conversations")
+async def get_conversations(user_id: str = Query(...)):
+    """根据用户ID获取对话列表"""
+    try:
+        res = supabase.table('conversations').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"获取对话列表时出错: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @api_router.post("/conversations", status_code=201)
