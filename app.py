@@ -1,5 +1,6 @@
 # 导入必要的模块
-from fastapi import FastAPI, HTTPException, Request, Body, File, UploadFile
+from fastapi import FastAPI, HTTPException, Request, Body, File, UploadFile, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
@@ -33,7 +34,23 @@ if not all([MOONSHOT_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
 # --- 初始化客户端 ---
 
 # 初始化 FastAPI 应用
-app = FastAPI(title="AI教育多智能体系统 (Supabase版)", description="基于AutoGen和Supabase的无状态多智能体系统")
+app = FastAPI(title="AI教育多-智能体系统 (Supabase版)", description="基于AutoGen和Supabase的无状态多智能体系统")
+
+# 配置 CORS 中间件
+# 这解决了前端访问后端时的跨域问题
+origins = [
+    "https://mvp-frontend-ln39.vercel.app",  # 允许您的 Vercel 前端
+    "http://localhost:5173",              # 允许本地开发环境
+    "http://127.0.0.1:5173",             # 允许本地开发环境
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有 HTTP 方法
+    allow_headers=["*"],  # 允许所有 HTTP 头部
+)
 
 # 初始化 Supabase 客户端
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -129,11 +146,15 @@ def get_relevant_documents_from_db(query_text: str, top_k: int = 3) -> tuple[str
 
 # --- API 路由 ---
 
-@app.get("/")
+api_router = APIRouter(prefix="/ai/multi-agent")
+
+
+@api_router.get("/")
 async def root():
     return {"message": "AI教育多智能体系统API (Supabase版)"}
 
-@app.post("/conversations", status_code=201)
+
+@api_router.post("/conversations", status_code=201)
 async def create_conversation(req: ConversationCreateRequest):
     """创建一次新的对话会话"""
     try:
@@ -152,7 +173,7 @@ async def create_conversation(req: ConversationCreateRequest):
         logger.error(f"创建对话时出错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/messages", response_model=MessageResponse)
+@api_router.post("/messages", response_model=MessageResponse)
 async def create_message(req: MessageCreateRequest):
     """处理用户消息，并获取一个智能体的回复"""
     try:
@@ -212,7 +233,7 @@ async def create_message(req: MessageCreateRequest):
         logger.error(f"处理消息时出错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/knowledge/upload", status_code=201)
+@api_router.post("/knowledge/upload", status_code=201)
 async def upload_knowledge(file: UploadFile = File(...)):
     """上传知识库文件，处理并存入Supabase数据库"""
     try:
@@ -252,9 +273,13 @@ async def upload_knowledge(file: UploadFile = File(...)):
             shutil.rmtree("temp_uploads")
         raise HTTPException(status_code=500, detail=f"上传知识库文件失败: {e}")
 
+app.include_router(api_router)
+
+
 # 用于本地调试
 if __name__ == "__main__":
     import uvicorn
     from dotenv import load_dotenv
+
     load_dotenv()
     uvicorn.run(app, host="0.0.0.0", port=8000)
