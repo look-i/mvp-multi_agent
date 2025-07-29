@@ -21,3 +21,4 @@ supabase
 # Utilities
 python-dotenv
 python-multipart
+gotrue # 用于处理Supabase JWT
